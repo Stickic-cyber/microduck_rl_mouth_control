@@ -33,6 +33,12 @@ MICRODUCK_GROUNDCONTACT_ROLLERS_XML: Path = _ROBOT_DIR / "robot_groundcontact_ro
 MICRODUCK_GROUNDCONTACT_BACKLASH_XML: Path = _ROBOT_DIR / "robot_groundcontact_backlash.xml"
 MICRODUCK_WALK_BACKLASH_XML: Path = _ROBOT_DIR / "robot_walk_backlash.xml"
 MICRODUCK_GROUNDCONTACT_ROLLERS_BACKLASH_XML: Path = _ROBOT_DIR / "robot_groundcontact_rollers_backlash.xml"
+# 15th actuated joint for mouth RL. Derived from robot_groundcontact.xml by
+# add_mouth.py: the bill (jaw, soft_mouth_top, jaw_soft) + mouth_tip site are
+# split out of the rigid jaw_soft head into a child `mouth` body driven by a
+# `mouth` hinge + position actuator (mirrors the real duck's mouth servo, ID 34).
+# Exported model — regenerate with add_mouth.py, don't hand-edit.
+MICRODUCK_MOUTH_XML: Path = _ROBOT_DIR / "robot_groundcontact_mouth.xml"
 
 assert MICRODUCK_WALK_XML.exists(), f"XML not found: {MICRODUCK_WALK_XML}"
 assert MICRODUCK_GROUNDCONTACT_XML.exists(), f"XML not found: {MICRODUCK_GROUNDCONTACT_XML}"
@@ -42,6 +48,7 @@ assert MICRODUCK_GROUNDCONTACT_ROLLERS_XML.exists(), f"XML not found: {MICRODUCK
 assert MICRODUCK_GROUNDCONTACT_BACKLASH_XML.exists(), f"XML not found: {MICRODUCK_GROUNDCONTACT_BACKLASH_XML}"
 assert MICRODUCK_WALK_BACKLASH_XML.exists(), f"XML not found: {MICRODUCK_WALK_BACKLASH_XML}"
 assert MICRODUCK_GROUNDCONTACT_ROLLERS_BACKLASH_XML.exists(), f"XML not found: {MICRODUCK_GROUNDCONTACT_ROLLERS_BACKLASH_XML}"
+assert MICRODUCK_MOUTH_XML.exists(), f"XML not found: {MICRODUCK_MOUTH_XML}"
 
 
 def get_walk_spec() -> mujoco.MjSpec:
@@ -78,6 +85,11 @@ def get_walk_backlash_spec() -> mujoco.MjSpec:
     return mujoco.MjSpec.from_file(str(MICRODUCK_WALK_BACKLASH_XML))
 
 
+def get_mouth_spec() -> mujoco.MjSpec:
+    """The ground-contact model with a 15th actuated `mouth` joint (see add_mouth.py)."""
+    return mujoco.MjSpec.from_file(str(MICRODUCK_MOUTH_XML))
+
+
 def get_rollers_backlash_spec() -> mujoco.MjSpec:
     return mujoco.MjSpec.from_file(str(MICRODUCK_GROUNDCONTACT_ROLLERS_BACKLASH_XML))
 
@@ -104,6 +116,10 @@ HOME_FRAME = EntityCfg.InitialStateCfg(
         r".*head_pitch.*": 0.3491,
         r".*head_yaw.*": 0.0,
         r".*head_roll.*": 0.0,
+        # Mouth: closed at HOME (the real duck's mouth servo rests shut). Only
+        # matched by the dedicated mouth model — other models have no `mouth`
+        # joint, so a first-match-wins pattern pointing at it is a no-op there.
+        r".*mouth.*": 0.0,
     },
     joint_vel={".*": 0.0},
 )
@@ -190,6 +206,20 @@ MICRODUCK_STANDUP_ROBOT_CFG = EntityCfg(
 
 MICRODUCK_GROUND_PICK_ROBOT_CFG = EntityCfg(
     spec_fn=get_ground_pick_spec,
+    init_state=HOME_FRAME,
+    collisions=(FULL_COLLISION,),
+    articulation=EntityArticulationInfoCfg(
+        actuators=(actuators,),
+        soft_joint_pos_limit_factor=0.9,
+    ),
+)
+
+# Mouth robot: the 15th `mouth` joint is NOT excluded from the BAM actuator regex
+# (it has no `passive_` prefix), so the action space grows to 15 dims. This is the
+# deliberate contract change for mouth-throw RL; it is scoped to this task, which
+# uses this cfg only — every other task keeps the shared 14-joint / 61-D layout.
+MICRODUCK_MOUTH_ROBOT_CFG = EntityCfg(
+    spec_fn=get_mouth_spec,
     init_state=HOME_FRAME,
     collisions=(FULL_COLLISION,),
     articulation=EntityArticulationInfoCfg(
