@@ -75,6 +75,10 @@ from .microduck_roulade_env_cfg import (
     make_microduck_roulade_env_cfg,
     MicroduckRouladeRlCfg,
 )
+from .microduck_mouth_throw_env_cfg import (
+    make_microduck_mouth_throw_env_cfg,
+    MicroduckMouthThrowRlCfg,
+)
 from .backlash import make_backlash_variant
 
 # Standard velocity task
@@ -169,6 +173,25 @@ register_mjlab_task(
     env_cfg=make_microduck_ground_pick_env_cfg(rough=True),
     play_env_cfg=make_microduck_ground_pick_env_cfg(play=True, rough=True),
     rl_cfg=MicroduckGroundPickRlCfg,
+    runner_cls=MicroduckOnPolicyRunner,
+)
+
+# Mouth-throw task — one-shot: crouch, grip a pen in the beak, whip the head up
+# and open the mouth to throw it, return to stand. Uses the 15-joint mouth model
+# (a delibeate, task-scoped obs/action contract change; standalone env).
+register_mjlab_task(
+    task_id="Mjlab-MouthThrow-Flat-MicroDuck",
+    env_cfg=make_microduck_mouth_throw_env_cfg(),
+    play_env_cfg=make_microduck_mouth_throw_env_cfg(play=True),
+    rl_cfg=MicroduckMouthThrowRlCfg,
+    runner_cls=MicroduckOnPolicyRunner,
+)
+
+register_mjlab_task(
+    task_id="Mjlab-MouthThrow-Rough-MicroDuck",
+    env_cfg=make_microduck_mouth_throw_env_cfg(rough=True),
+    play_env_cfg=make_microduck_mouth_throw_env_cfg(play=True, rough=True),
+    rl_cfg=MicroduckMouthThrowRlCfg,
     runner_cls=MicroduckOnPolicyRunner,
 )
 
